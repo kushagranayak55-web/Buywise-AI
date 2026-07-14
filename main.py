@@ -7,6 +7,7 @@ from database import Base
 from database import SessionLocal
 from models import User
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
 
 from schemas import UserRegister, UserLogin, Token,RecommendationRequest
 
@@ -33,11 +34,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
+@app.get("/models")
+def models():
+    return[m.name for m in client.models.list()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+allow_origins=[
+    "http://localhost:5173",
+    "https://buywise-ai-frontend-qnps-orpin.vercel.app",
+] ,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,10 +104,16 @@ def login(user: UserLogin):
     db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user:
-        return {"message": "Invalid email or password"}
+      raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+      )
 
     if not verify_password(user.password, db_user.hashed_password):
-        return {"message": "Invalid email or password"}
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+        )
 
     access_token = create_access_token(
         data={"sub": db_user.email}
@@ -156,9 +168,4 @@ def profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
 @app.get("/check-key")
 def check_key():
     return {
-        "api_key": os.getenv("GEMINI_API_KEY")
-    }
-
-@app.get("/models")
-def models():
-    return[m.name for m in client.models.list()]
+        "api_key": os.getenv("GEMINI_API_KEY") }
